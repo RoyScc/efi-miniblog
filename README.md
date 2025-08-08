@@ -1,6 +1,6 @@
 # 📝 MiniBlog - Proyecto Flask
 
-Este es un proyecto simple de blog desarrollado con **Flask**, que permite a los usuarios registrarse, iniciar sesión y crear publicaciones, comentarios y categorías.
+Este es un proyecto simple de blog desarrollado con **Flask**, que permite a los usuarios registrarse, iniciar sesión y crear publicaciones, y comentar.
 
 ---
 
@@ -13,6 +13,6 @@ Este es un proyecto simple de blog desarrollado con **Flask**, que permite a los
 - 📅 Fechas automáticas de creación
 - 📂 Migraciones con Flask-Migrate
 
-## - Integrantes
+##  Integrantes
   * Roy Scheurer
   * Valentina Alaniz
