@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+
+{% block title %}Crear Nuevo Post{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold mb-6 text-center">Crear un Nuevo Post</h1>
+    <!-- El formulario envía los datos a la ruta 'create_post' con el método POST. -->
+    <form method="POST" action="{{ url_for('create_post') }}">
+        <div class="mb-4">
+            <label for="title" class="block text-gray-700 font-bold mb-2">Título:</label>
+            <input type="text" name="title" id="title" class="shadow border rounded w-full py-2 px-3" required>
+        </div>
+        <div class="mb-4">
+            <label for="content" class="block text-gray-700 font-bold mb-2">Contenido:</label>
+            <textarea name="content" id="content" rows="10" class="shadow border rounded w-full py-2 px-3" required></textarea>
+        </div>
+        <div class="mb-4">
+            <label for="user_id" class="block text-gray-700 font-bold mb-2">Autor:</label>
+            <select name="user_id" id="user_id" class="shadow border rounded w-full py-2 px-3" required>
+                <option value="">Selecciona un autor</option>
+                {% for user in users %}
+                <option value="{{ user.id }}">{{ user.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-6">
+            <label class="block text-gray-700 font-bold mb-2">Categorías:</label>
+            <div class="grid grid-cols-2 gap-2">
+                <!-- Muestro checkboxes para cada categoría disponible. -->
+                {% for category in categories %}
+                <div>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="categories" value="{{ category.id }}" class="form-checkbox h-5 w-5 text-blue-600">
+                        <span class="ml-2 text-gray-700">{{ category.name }}</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="flex items-center justify-center">
+            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg">
+                Publicar Post
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
