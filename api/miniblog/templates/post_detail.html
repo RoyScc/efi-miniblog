@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}{{ post.titulo }}{% endblock %}
+{% block content %}
+<article class="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
+    <h1 class="text-4xl font-bold mb-4">{{ post.titulo }}</h1>
+    <p class="text-gray-500 mb-2">
+        Escrito por <span class="font-semibold">{{ post.autor.nombre }}</span> el {{ post.fecha_creacion.strftime('%d de %B de %Y') }}
+    </p>
+    <div class="mb-6">
+        {% for categoria in post.categorias %}
+            <a href="{{ url_for('posts_by_category', category_id=categoria.id) }}" class="inline-block bg-gray-200 text-gray-800 text-sm font-semibold mr-2 px-3 py-1 rounded-full">{{ categoria.nombre }}</a>
+        {% endfor %}
+    </div>
+    <div class="prose max-w-none text-gray-800">
+        {{ post.contenido | safe }}
+    </div>
+</article>
+<section class="mt-12 max-w-4xl mx-auto">
+    <h2 class="text-3xl font-bold mb-6">Comentarios ({{ post.comentarios|length }})</h2>
+    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h3 class="text-xl font-semibold mb-4">Deja un comentario</h3>
+        {% if current_user.is_authenticated %}
+            <form method="POST" action="{{ url_for('post_detail', post_id=post.id) }}">
+                <div class="mb-4">
+                    <label for="texto_comentario" class="block text-gray-700 font-bold mb-2">Comentario:</label>
+                    <textarea name="texto_comentario" id="texto_comentario" rows="4" class="shadow border rounded w-full py-2 px-3" required></textarea>
+                </div>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Enviar Comentario</button>
+            </form>
+        {% else %}
+            <p>Debes <a href="{{ url_for('login') }}" class="text-blue-500 hover:text-blue-600">iniciar sesión</a> para poder comentar.</p>
+        {% endif %}
+    </div>
+    <div class="space-y-6">
+        {% for comentario in post.comentarios %}
+        <div class="bg-white p-5 rounded-lg shadow">
+            <p class="text-gray-800">{{ comentario.texto }}</p>
+            <p class="text-sm text-gray-500 mt-3">
+                -- <span class="font-semibold">{{ comentario.autor.nombre }}</span> el {{ comentario.fecha_creacion.strftime('%d/%m/%Y') }}
+            </p>
+        </div>
+        {% else %}
+        <div class="bg-white p-5 rounded-lg shadow text-center">
+            <p class="text-gray-600">No hay comentarios aún.</p>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

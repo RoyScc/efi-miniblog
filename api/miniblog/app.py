@@ -1,162 +1,268 @@
 # --- 1. IMPORTACIONES ---
-# Importo todo lo que necesito para que la aplicación funcione.
-# Flask para la app, render_template para las vistas, y el resto para manejar formularios y la base de datos.
-from flask import Flask, render_template, request, redirect, url_for, flash
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_migrate import Migrate
-from datetime import datetime
-
-# --- 2. CONFIGURACIÓN ---
-# Creo la instancia de la aplicación Flask.
-app = Flask(__name__)
-
-# Configuro la conexión a mi base de datos MySQL en XAMPP.
-# La base de datos se llama 'miniblog_db' y el usuario es 'root' sin contraseña.
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/miniblog_db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Configuración recomendada.
-app.config['SECRET_KEY'] = 'mi_clave_secreta_para_efi' # Clave para los mensajes flash.
-
-# Inicializo las extensiones, vinculándolas con mi app.
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-
-# --- 3. MODELOS DE LA BASE DE DATOS ---
-# Defino la estructura de mis tablas usando clases de Python.
-
-# Tabla de asociación para la relación muchos-a-muchos entre Post y Category.
-# Un post puede tener varias categorías y viceversa.
-post_category = db.Table('post_category',
-    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
-    db.Column('category_id', db.Integer, db.ForeignKey('category.id'), primary_key=True)
+from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, Usuario, Post, Comentario, Categoria, UserCredentials
+from flask_jwt_extended import create_access_token, JWTManager
+from datetime import timedelta
+from flask_login import (
+    LoginManager,
+    login_user,
+    login_required,
+    logout_user,
+    current_user,
+)
+from werkzeug.security import (
+    check_password_hash,
+    generate_password_hash,
 )
 
-# Modelo para la tabla de Usuarios.
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False) # En un proyecto real, esto debería estar hasheado.
     
-    # Relaciones: Un usuario puede tener muchos posts y muchos comentarios.
-    posts = db.relationship('Post', backref='author', lazy=True)
-    comments = db.relationship('Comment', backref='author', lazy=True)
+# --- 2. CONFIGURACIÓN ---
+app = Flask(__name__)
 
-# Modelo para la tabla de Posts (Entradas).
-class Post(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    
-    # Clave foránea para saber qué usuario escribió el post.
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
-    # Relaciones: Un post puede tener muchos comentarios y muchas categorías.
-    comments = db.relationship('Comment', backref='post', lazy=True, cascade="all, delete-orphan")
-    categories = db.relationship('Category', secondary=post_category, lazy='subquery',
-        backref=db.backref('posts', lazy=True))
+# Configuración de la base de datos
+app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=2)
 
-# Modelo para la tabla de Comentarios.
-class Comment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    text = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    
-    # Claves foráneas para vincular el comentario a un usuario y a un post.
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:demo@localhost/miniblog'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = "demo" # Clave para los mensajes flash
 
-# Modelo para la tabla de Categorías.
-class Category(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)
+# Inicializa el gestor de JWT
+jwt = JWTManager(app)
 
+db.init_app(app)
+migrate = Migrate(app, db)
 
-# --- 4. CONTEXT PROCESSOR ---
-# Esta función hace que la lista de todas las categorías ('all_categories')
-# esté disponible en todas mis plantillas HTML sin tener que pasarla en cada 'render_template'.
+login_manager = LoginManager()
+login_manager.init_app(app)  # ¡Añade esta línea!
+login_manager.login_view = 'login' # Define la ruta de login
+
+def init_db():
+    with app.app_context():
+        db.create_all()
+        
+        # Verificar y crear categorías si no existen
+        categorias_a_crear = ['Tecnología', 'Viajes', 'General', 'Cocina', 'Deportes', 'Cine', 'Música']
+        for nombre_cat in categorias_a_crear:
+            existe = Categoria.query.filter_by(nombre=nombre_cat).first()
+            if not existe:
+                nueva_cat = Categoria(nombre=nombre_cat)
+                db.session.add(nueva_cat)
+        
+        db.session.commit()
+
+# Inicialización de la base de datos y migraciones
+with app.app_context():
+    init_db()
+
+# --- Agrega esta función para que LoginManager sepa cómo encontrar a los usuarios ---
+@login_manager.user_loader
+def load_user(user_id):
+    return Usuario.query.get(int(user_id))
+# Pone la lista de categorías disponible en todas las plantillas.
 @app.context_processor
 def inject_categories():
-    categories = Category.query.order_by(Category.name).all()
-    return dict(all_categories=categories)
+    categorias = Categoria.query.order_by(Categoria.nombre).all()
+    return dict(all_categories=categorias)
 
 
-# --- 5. RUTAS Y VISTAS ---
-# Defino las diferentes páginas (URLs) de mi aplicación.
+# --- 4. RUTAS Y VISTAS ---
 
-# Ruta para la página principal.
 @app.route('/')
 def index():
-    # Busco todos los posts en la base de datos, ordenados del más nuevo al más viejo.
-    posts = Post.query.order_by(Post.created_at.desc()).all()
-    # Muestro la plantilla 'index.html' y le paso la lista de posts.
+    posts = Post.query.order_by(Post.fecha_creacion.desc()).all()
     return render_template('index.html', posts=posts)
 
-# Ruta para ver un post en detalle.
-@app.route('/post/<int:post_id>', methods=['GET', 'POST'])
-def post_detail(post_id):
-    # Busco el post por su ID. Si no lo encuentra, da un error 404.
-    post = Post.query.get_or_404(post_id)
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Faltan username o password"}), 400
+
+    user = Usuario.query.filter_by(nombre=username).first()
+
+    if not user or not user.credentials or not check_password_hash(
+        pwhash=user.credentials.password_hash, 
+        password=password
+    ):
+        return jsonify({"error": "Credenciales inválidas"}), 401
+
+    # En lugar de login_user(user), creo el token:
     
-    # Si el usuario envía el formulario de comentario (método POST)...
-    if request.method == 'POST':
-        comment_text = request.form.get('comment_text')
-        user_id = request.form.get('user_id')
-        
-        # Creo el nuevo comentario y lo guardo en la base de datos.
-        new_comment = Comment(text=comment_text, user_id=user_id, post_id=post.id)
-        db.session.add(new_comment)
-        db.session.commit()
-        flash('¡Comentario añadido con éxito!', 'success')
-        # Redirijo a la misma página para que se vea el nuevo comentario.
-        return redirect(url_for('post_detail', post_id=post.id))
+    access_token = create_access_token(identity=user.id)
+    
+    # Retorno el token 
+    return jsonify({
+        "mensaje": "Login exitoso",
+        "token": access_token,
+        "user_id": user.id
+    }), 200
 
-    # Si es una visita normal (método GET), muestro la plantilla con los datos del post.
-    users = User.query.all() # Necesito la lista de usuarios para el formulario.
-    return render_template('post_detail.html', post=post, users=users)
-
-# Ruta para la página de creación de posts.
-@app.route('/create_post', methods=['GET', 'POST'])
-def create_post():
-    # Si el usuario envía el formulario...
-    if request.method == 'POST':
-        # Obtengo los datos del formulario.
-        title = request.form.get('title')
-        content = request.form.get('content')
-        user_id = request.form.get('user_id')
-        category_ids = request.form.getlist('categories')
-
-        # Creo el nuevo post.
-        new_post = Post(title=title, content=content, user_id=user_id)
-        
-        # Le asigno las categorías que se seleccionaron.
-        for cat_id in category_ids:
-            category = Category.query.get(cat_id)
-            if category:
-                new_post.categories.append(category)
-
-        # Guardo el post en la base de datos y muestro un mensaje.
-        db.session.add(new_post)
-        db.session.commit()
-        flash('¡Post creado con éxito!', 'success')
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
         return redirect(url_for('index'))
 
-    # Si es una visita normal, muestro el formulario de creación.
-    users = User.query.all()
-    categories = Category.query.all()
-    return render_template('create_post.html', users=users, categories=categories)
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = Usuario.query.filter_by(nombre=username).first()
+        # Verificamos si el usuario existe y si la contraseña es correcta
+        if user and user.credentials and check_password_hash(
+            pwhash=user.credentials.password_hash, 
+            password=password
+        ):
+            login_user(user) # Iniciamos la sesión para el usuario
+            next_page = request.args.get('next') 
+            return redirect(next_page or url_for('index'))
+        else: 
+            flash('Usuario o contraseña inválidos.', 'danger')
+            
+    return render_template('login.html')
 
-# Ruta para ver los posts de una categoría específica.
+@app.route('/api/register', methods=['POST'])
+def register_user():
+    data = request.get_json()
+    
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    # 2.2. Validar que los datos existan
+    if not username or not email or not password:
+        return jsonify({"error": "Faltan datos (username, email o password)"}), 400
+
+    # 2.3. Validar email único (Checklist)
+    existing_user = Usuario.query.filter_by(correo=email).first()
+    if existing_user:
+        return jsonify({"error": "El email ya está registrado"}), 409
+
+    # 3.1. Hashear la contraseña por seguridad
+    hashed_password = generate_password_hash(password)
+
+    # 3.2. Crear el nuevo Usuario Y sus Credenciales
+    try:
+        # 1. Crea el Usuario (SIN contraseña)
+        new_user = Usuario(
+            nombre=username,
+            correo=email
+        )
+        
+        # 2. Crea las Credenciales y las enlaza al usuario
+        new_credentials = UserCredentials(
+            password_hash=hashed_password,
+            user=new_user  # <-- ¡La magia de SQLAlchemy enlaza el ID!
+        )
+
+        # 3. Añade AMBOS a la sesión
+        db.session.add(new_user)
+        db.session.add(new_credentials)
+        
+        # 4. ¡Guarda todo en la base de datos!
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback() # Deshacer cambios si algo falla
+        return jsonify({"error": "Error al guardar en la base de datos", "detalle": str(e)}), 500
+
+    # 3.5. Responder con éxito
+    # (¡OJO! Tu modelo usa 'nombre' y 'correo', no 'username' y 'email')
+    return jsonify({
+        "mensaje": "Usuario registrado exitosamente",
+        "usuario": {
+            "id": new_user.id,
+            "username": new_user.nombre, # <-- Arreglado
+            "email": new_user.correo     # <-- Arreglado
+        }
+    }), 201
+
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     if request.method == 'POST':
+#         username = request.form.get('username')
+#         email = request.form.get('email')
+#         password = request.form.get('password')
+        
+#         user_existente = Usuario.query.filter_by(nombre=username).first()
+#         if user_existente:
+#             flash('El nombre de usuario ya existe.', 'danger')
+#             return redirect(url_for('register'))
+            
+#         hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+#         nuevo_usuario = Usuario(nombre=username, correo=email, contrasena=hashed_password)
+#         print(f"Usuario: {username}, Contraseña ingresada: {password}, Hash en DB: {hashed_password}")
+
+#         db.session.add(nuevo_usuario)
+#         db.session.commit()
+#         flash('¡Registro exitoso! Por favor, inicia sesión.', 'success')
+#         return redirect(url_for('login'))
+#     return render_template('register.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Has cerrado sesión correctamente.', 'success')
+    return redirect(url_for('index'))
+
+
+@app.route('/post/<int:post_id>', methods=['GET', 'POST'])
+@login_required 
+def post_detail(post_id):
+    post = Post.query.get_or_404(post_id)
+
+    if request.method == 'POST':
+        texto_comentario = request.form.get('texto_comentario')
+        
+        if texto_comentario and current_user.is_authenticated:
+            nuevo_comentario = Comentario(
+                texto=texto_comentario,
+                autor_id=current_user.id,
+                post_id=post.id)
+            db.session.add(nuevo_comentario)
+            db.session.commit()
+            flash('¡Comentario añadido con éxito!', 'success')
+            return redirect(url_for('post_detail', post_id=post.id))
+        else:
+            flash('El autor y el texto del comentario son obligatorios.', 'danger')
+
+    return render_template('post_detail.html', post=post)
+
+@app.route('/create_post', methods=['GET', 'POST'])
+@login_required 
+def create_post():
+    if request.method == 'POST':
+        titulo = request.form.get('title')
+        contenido = request.form.get('content')
+        autor_id = request.form.get('autor_id')
+        categoria_id = request.form.get('categoria_id')
+        if titulo and contenido and autor_id:
+            nuevo_post = Post(titulo=titulo, contenido=contenido, autor_id=autor_id, categoria_id=categoria_id)
+            db.session.add(nuevo_post)
+            db.session.commit()
+
+            flash('¡Post creado con éxito!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Título, contenido y autor son campos obligatorios.', 'danger')
+            return redirect(url_for('create_post'))
+
+    usuarios = Usuario.query.all()
+    categorias = Categoria.query.all()
+    return render_template('create_post.html', users=usuarios, categorias=categorias)
+
 @app.route('/category/<int:category_id>')
 def posts_by_category(category_id):
-    category = Category.query.get_or_404(category_id)
-    # Muestro una plantilla pasándole la categoría y sus posts asociados.
-    return render_template('posts_by_category.html', category=category)
+    categoria = Categoria.query.get_or_404(category_id)
+    return render_template('posts_by_category.html', category=categoria)
 
 
-# --- 6. EJECUCIÓN DE LA APP ---
-# Esta parte solo se ejecuta si corro el archivo directamente (python app.py).
 if __name__ == '__main__':
-    # Inicia el servidor de desarrollo de Flask en modo debug.
-    app.run(debug=True)
+    app.run(debug=True, port=5001)
