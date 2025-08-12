@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- El título de la página puede cambiar. Define un bloque para que las plantillas hijas lo llenen. -->
+    <title>{% block title %}MiniBlog{% endblock %}</title>
+    
+    <!-- Importa Tailwind CSS para tener un diseño moderno y rápido. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Enlazo mi propia hoja de estilos para ajustes personalizados. -->
+    <!-- Usa url_for para que Flask encuentre la ruta correcta al archivo estático. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Barra de Navegación Principal -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <!-- Logo o título del blog que lleva al inicio. -->
+            <a class="font-bold text-2xl text-gray-800" href="{{ url_for('index') }}">
+                MiniBlog
+            </a>
+            <div class="flex items-center">
+                <!-- Menú de navegación -->
+                <a class="py-2 px-3 text-gray-600 hover:text-blue-500" href="{{ url_for('index') }}">Inicio</a>
+                
+                <!-- Menú desplegable para las categorías. -->
+                <!-- La lista 'all_categories' viene del context_processor en app.py -->
+                <div class="relative group">
+                    <button class="py-2 px-3 text-gray-600 hover:text-blue-500">Categorías</button>
+                    <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl z-20 hidden group-hover:block">
+                        {% for category in all_categories %}
+                            <a href="{{ url_for('posts_by_category', category_id=category.id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white">{{ category.name }}</a>
+                        {% else %}
+                            <span class="block px-4 py-2 text-sm text-gray-500">No hay categorías</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Botón para crear un nuevo post. -->
+                <a class="py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-300 ml-4" href="{{ url_for('create_post') }}">
+                    Crear Post
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- se mostrarán los mensajes flash (ej: "Post creado con éxito"). -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="p-4 mb-4 text-sm rounded-lg 
+                        {% if category == 'danger' %} bg-red-100 text-red-700 
+                        {% elif category == 'success' %} bg-green-100 text-green-700 
+                        {% else %} bg-blue-100 text-blue-700 {% endif %}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Este es el bloque que cada plantilla hija llenará con su contenido específico. -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Pie de Página -->
+    <footer class="bg-white mt-12 py-6">
+        <div class="container flex justify-between mx-auto px-4 text-right text-gray-600">
+            <p>&copy; 2025 MiniBlog </p>
+            <p>Roy Scheurer & Valentina Alaniz</p>
+        </div>
+    </footer>
+
+</body>
+</html>
