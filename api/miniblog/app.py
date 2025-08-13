@@ -9,6 +9,11 @@ from flask_login import (
     logout_user,
     current_user,
 )
+from werkzeug.security import (
+    check_password_hash,
+    generate_password_hash,
+)
+
 
 # --- 2. CONFIGURACIÓN ---
 app = Flask(__name__)
@@ -49,18 +54,48 @@ def index():
 
 # ... (tus imports y configuraciones) ...
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Renderiza un formulario de login.html
-    return render_template('login.html')
-@app.route('/register')
-def register():
-    # Renderiza un formulario de login.html
-    return render_template('register.html')
-# ... (tus otras rutas) ...
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = Usuario.query.filter_by(nombre=username).first()
+        # Verificamos si el usuario existe y si la contraseña es correcta
+        if user and check_password_hash(pwhash=user.contrasena,password=password):
+            login_user(user) # Iniciamos la sesión para el usuario
+            return render_template('login.html')
+        else: 
+            flash('Usuario o contraseña inválidos.', 'danger')
+    return render_template(
+        'login.html'
+    )
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    # ... (código anterior) ...
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        # Corregido: Usar 'nombre_usuario' en el filtro
+        user_existente = Usuario.query.filter_by(nombre=username).first()
+        if user_existente:
+            flash('El nombre de usuario ya existe.', 'danger')
+            return redirect(url_for('register'))
+            
+        nuevo_usuario = Usuario(nombre=username, correo=email, contrasena=password)
+       
+        db.session.add(nuevo_usuario)
+        db.session.commit()
+        flash('¡Registro exitoso! Por favor, inicia sesión.', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html')
 
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
+@login_required 
 def post_detail(post_id):
     post = Post.query.get_or_404(post_id)
     if request.method == 'POST':
@@ -78,6 +113,7 @@ def post_detail(post_id):
     return render_template('post_detail.html', post=post, users=usuarios)
 
 @app.route('/create_post', methods=['GET', 'POST'])
+@login_required 
 def create_post():
     if request.method == 'POST':
         titulo = request.form.get('title')
@@ -111,8 +147,12 @@ def posts_by_category(category_id):
 def init_data():
     # --- USUARIOS ---
     if Usuario.query.count() == 0:
-        usuario1 = Usuario(nombre_usuario='valentina', correo='val@mail.com', contrasena='123')
-        usuario2 = Usuario(nombre_usuario='invitado', correo='invitado@mail.com', contrasena='123')
+        # Usa el método set_password para encriptar las contraseñas
+        #usuario1 = Usuario(nombre_usuario='valentina', correo='val@mail.com')
+        #usuario1.set_password('123')
+        #usuario2 = Usuario(nombre_usuario='invitado', correo='invitado@mail.com')
+        #usuario2.set_password('123')
+        
         db.session.add(usuario1)
         db.session.add(usuario2)
     
