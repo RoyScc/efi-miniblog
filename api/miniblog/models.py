@@ -3,13 +3,6 @@ from datetime import datetime
 from flask_login import UserMixin
 db = SQLAlchemy()
 
-    # Tabla auxiliar #
-post_categorias = db.Table(
-    'post_categorias',
-    db.Column('post_id', db.Integer, db.ForeignKey('posts.id'), primary_key=True),
-    db.Column('categoria_id', db.Integer, db.ForeignKey('categorias.id'), primary_key=True)
-)
-
 class Usuario(db.Model, UserMixin): # Usuarios registrados en el miniblog
     __tablename__ = 'usuarios'
 
@@ -40,10 +33,6 @@ class Post(db.Model):
     # Relación con Comentarios
     comentarios = db.relationship('Comentario', backref='post', lazy=True)
     
-    # Relación con Categoría (muchos a muchos)
-    categorias = db.relationship('Categoria', secondary=post_categorias, backref='posts', lazy='subquery')
-    def __repr__(self):
-        return f'<Post {self.titulo}>'
     
 
 class Comentario(db.Model):

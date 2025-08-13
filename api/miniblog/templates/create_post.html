@@ -1,64 +1,28 @@
 {% extends "layout.html" %}
-
 {% block title %}Crear Nuevo Post{% endblock %}
-
 {% block content %}
 <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
     <h1 class="text-3xl font-bold mb-6 text-center">Crear un Nuevo Post</h1>
-    <!-- El formulario envía los datos a la ruta 'create_post' con el método POST. -->
-    <form action="{{ url_for('create_post') }}" method="POST">
+    <form method="POST" action="{{ url_for('create_post') }}">
         <div class="mb-4">
-            <label for="titulo" class="block text-gray-700 font-bold mb-2">Título:</label>
-            <input type="text" name="titulo" id="titulo" class="shadow border rounded w-full py-2 px-3" required>
+            <label for="title" class="block text-gray-700 font-bold mb-2">Título:</label>
+            <input type="text" name="title" id="title" class="shadow border rounded w-full py-2 px-3" required>
         </div>
         <div class="mb-4">
-            <label for="contenido" class="block text-gray-700 font-bold mb-2">Contenido:</label>
-            <textarea name="contenido" id="contenido" rows="10" class="shadow border rounded w-full py-2 px-3" required></textarea>
+            <label for="content" class="block text-gray-700 font-bold mb-2">Contenido:</label>
+            <textarea name="content" id="content" rows="10" class="shadow border rounded w-full py-2 px-3" required></textarea>
         </div>
-
-        <div class="mb-4">
-            <label class="block text-gray-700 font-bold mb-2">Autor:</label>
-            <div>
-                {% if users %} 
-                {% for autor in users %}
-                <div>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="user_id" value="{{ autor.id }}" class="form-checkbox h-5 w-5 text-blue-600">
-                        <span class="ml-2 text-gray-700">{{ autor.nombre }}</span>
-                    </label>
-                </div>
-                {% endfor %}
-
-                {% else %}
-                <label class="block text-red-600 font-bold-italic mb-2"> No hay autores disponibles </label>
-                <div class="col-span-2">
-                    <input type="text" name="new_user" placeholder="Ingrese su autor aqui" class="shadow border rounded w-full py-2 px-3" required>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
         <div class="mb-6">
             <label class="block text-gray-700 font-bold mb-2">Categorías:</label>
             <div class="grid grid-cols-2 gap-2">
-                <!-- Muestro checkboxes para cada categoría disponible. -->
-                {% if categorias %}
-                {% for categoria in categorias %}
+                {% for category in categorias %}
                 <div>
                     <label class="inline-flex items-center">
-                        <input type="checkbox" name="categorias" value="{{ categoria.id }}" class="form-checkbox h-5 w-5 text-blue-600">
-                        <span class="ml-2 text-gray-700">{{ categoria.nombre }}</span>
+                        <input type="checkbox" name="categories" value="{{ category.id }}" class="form-checkbox">
+                        <span class="ml-2">{{ category.nombre }}</span>
                     </label>
                 </div>
                 {% endfor %}
-
-                {% else %}
-                <!-- Si NO hay categorías, muestra un campo de texto -->
-                <label class="block text-red-600 font-bold-italic mb-2"> No hay categorías disponibles </label>
-                <div class="col-span-2">
-                    <input type="text" name="new_category" placeholder="Ingrese su categoria aqui" class="shadow border rounded w-full py-2 px-3" required>
-                </div>
-                {% endif %}
             </div>
         </div>
         <div class="flex items-center justify-center">

@@ -16,12 +16,12 @@
             <h2 class="font-bold text-2xl mb-2">
                 <a href="{{ url_for('post_detail', post_id=post.id) }}" class="hover:text-blue-600">{{ post.titulo }}</a>
             </h2>
+            <!-- CORRECCIÓN AQUÍ: Cambiamos 'post.autor.nombre' por 'post.autor.nombre_usuario' -->
             <p class="text-gray-600 text-sm mb-4">
-                Por <span class="font-semibold">{{ post.autor.nombre }}</span> el {{ post.fecha_creacion.strftime('%d/%m/%Y') }}
+                Por <span class="font-semibold">{{ post.autor.nombre_usuario }}</span> el {{ post.fecha_creacion.strftime('%d/%m/%Y') }}
             </p>
             <p class="text-gray-700">
                 {{ post.contenido | truncate(150, true) }}
-                
             </p>
             <div class="mt-6">
                 <a href="{{ url_for('post_detail', post_id=post.id) }}" class="text-blue-500 hover:text-blue-700 font-semibold">
