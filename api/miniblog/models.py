@@ -26,7 +26,10 @@ class Post(db.Model):
     titulo = db.Column(db.String(200), nullable=False)
     contenido = db.Column(db.Text, nullable=False)
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
-
+ 
+    # Relación con Categoria
+    categoria_id = db.Column(db.Integer, db.ForeignKey('categorias.id'), nullable=False)
+    
     # Relación con Usuario (autor del post)
     autor_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
 
@@ -57,6 +60,7 @@ class Categoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), unique=True, nullable=False)
     
+    posts = db.relationship('Post', backref='categoria', lazy=True)
     def __repr__(self):
         return f'<Categoria {self.nombre}>'
 
