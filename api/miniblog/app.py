@@ -3,6 +3,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Usuario, Post, Comentario, Categoria, UserCredentials
+from flask_jwt_extended import create_access_token, JWTManager
+from datetime import timedelta
 from flask_login import (
     LoginManager,
     login_user,
@@ -20,9 +22,15 @@ from werkzeug.security import (
 app = Flask(__name__)
 
 # Configuración de la base de datos
+app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=2)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:demo@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = "demo" # Clave para los mensajes flash
+
+# Inicializa el gestor de JWT
+jwt = JWTManager(app)
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -67,6 +75,34 @@ def index():
     posts = Post.query.order_by(Post.fecha_creacion.desc()).all()
     return render_template('index.html', posts=posts)
 
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Faltan username o password"}), 400
+
+    user = Usuario.query.filter_by(nombre=username).first()
+
+    if not user or not user.credentials or not check_password_hash(
+        pwhash=user.credentials.password_hash, 
+        password=password
+    ):
+        return jsonify({"error": "Credenciales inválidas"}), 401
+
+    # En lugar de login_user(user), creo el token:
+    
+    access_token = create_access_token(identity=user.id)
+    
+    # Retorno el token 
+    return jsonify({
+        "mensaje": "Login exitoso",
+        "token": access_token,
+        "user_id": user.id
+    }), 200
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
