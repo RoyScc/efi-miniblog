@@ -1,8 +1,8 @@
 # --- 1. IMPORTACIONES ---
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Usuario, Post, Comentario, Categoria
+from models import db, Usuario, Post, Comentario, Categoria, UserCredentials
 from flask_login import (
     LoginManager,
     login_user,
@@ -19,7 +19,7 @@ from werkzeug.security import (
 # --- 2. CONFIGURACIÓN ---
 app = Flask(__name__)
 
-# Configuración de la base de datos (SIN contraseña para 'root')
+# Configuración de la base de datos
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:demo@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = "demo" # Clave para los mensajes flash
@@ -78,37 +78,96 @@ def login():
         password = request.form.get('password')
         user = Usuario.query.filter_by(nombre=username).first()
         # Verificamos si el usuario existe y si la contraseña es correcta
-        if user and check_password_hash(pwhash=user.contrasena,password=password):
+        if user and user.credentials and check_password_hash(
+            pwhash=user.credentials.password_hash, 
+            password=password
+        ):
             login_user(user) # Iniciamos la sesión para el usuario
             next_page = request.args.get('next') 
             return redirect(next_page or url_for('index'))
         else: 
             flash('Usuario o contraseña inválidos.', 'danger')
-    return render_template(
-        'login.html'
-    )
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        user_existente = Usuario.query.filter_by(nombre=username).first()
-        if user_existente:
-            flash('El nombre de usuario ya existe.', 'danger')
-            return redirect(url_for('register'))
             
-        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-        nuevo_usuario = Usuario(nombre=username, correo=email, contrasena=hashed_password)
-        print(f"Usuario: {username}, Contraseña ingresada: {password}, Hash en DB: {hashed_password}")
+    return render_template('login.html')
 
-        db.session.add(nuevo_usuario)
+@app.route('/api/register', methods=['POST'])
+def register_user():
+    data = request.get_json()
+    
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    # 2.2. Validar que los datos existan
+    if not username or not email or not password:
+        return jsonify({"error": "Faltan datos (username, email o password)"}), 400
+
+    # 2.3. Validar email único (Checklist)
+    existing_user = Usuario.query.filter_by(correo=email).first()
+    if existing_user:
+        return jsonify({"error": "El email ya está registrado"}), 409
+
+    # 3.1. Hashear la contraseña por seguridad
+    hashed_password = generate_password_hash(password)
+
+    # 3.2. Crear el nuevo Usuario Y sus Credenciales
+    try:
+        # 1. Crea el Usuario (SIN contraseña)
+        new_user = Usuario(
+            nombre=username,
+            correo=email
+        )
+        
+        # 2. Crea las Credenciales y las enlaza al usuario
+        new_credentials = UserCredentials(
+            password_hash=hashed_password,
+            user=new_user  # <-- ¡La magia de SQLAlchemy enlaza el ID!
+        )
+
+        # 3. Añade AMBOS a la sesión
+        db.session.add(new_user)
+        db.session.add(new_credentials)
+        
+        # 4. ¡Guarda todo en la base de datos!
         db.session.commit()
-        flash('¡Registro exitoso! Por favor, inicia sesión.', 'success')
-        return redirect(url_for('login'))
-    return render_template('register.html')
+
+    except Exception as e:
+        db.session.rollback() # Deshacer cambios si algo falla
+        return jsonify({"error": "Error al guardar en la base de datos", "detalle": str(e)}), 500
+
+    # 3.5. Responder con éxito
+    # (¡OJO! Tu modelo usa 'nombre' y 'correo', no 'username' y 'email')
+    return jsonify({
+        "mensaje": "Usuario registrado exitosamente",
+        "usuario": {
+            "id": new_user.id,
+            "username": new_user.nombre, # <-- Arreglado
+            "email": new_user.correo     # <-- Arreglado
+        }
+    }), 201
+
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     if request.method == 'POST':
+#         username = request.form.get('username')
+#         email = request.form.get('email')
+#         password = request.form.get('password')
+        
+#         user_existente = Usuario.query.filter_by(nombre=username).first()
+#         if user_existente:
+#             flash('El nombre de usuario ya existe.', 'danger')
+#             return redirect(url_for('register'))
+            
+#         hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+#         nuevo_usuario = Usuario(nombre=username, correo=email, contrasena=hashed_password)
+#         print(f"Usuario: {username}, Contraseña ingresada: {password}, Hash en DB: {hashed_password}")
+
+#         db.session.add(nuevo_usuario)
+#         db.session.commit()
+#         flash('¡Registro exitoso! Por favor, inicia sesión.', 'success')
+#         return redirect(url_for('login'))
+#     return render_template('register.html')
+
 
 @app.route('/logout')
 @login_required
@@ -116,6 +175,8 @@ def logout():
     logout_user()
     flash('Has cerrado sesión correctamente.', 'success')
     return redirect(url_for('index'))
+
+
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 @login_required 
 def post_detail(post_id):
@@ -136,7 +197,7 @@ def post_detail(post_id):
         else:
             flash('El autor y el texto del comentario son obligatorios.', 'danger')
 
-    return render_template('post_detail.html', post=post, users=usuarios)
+    return render_template('post_detail.html', post=post)
 
 @app.route('/create_post', methods=['GET', 'POST'])
 @login_required 
