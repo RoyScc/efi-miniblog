@@ -1,21 +1,12 @@
 # --- 1. IMPORTACIONES ---
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_migrate import Migrate
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Usuario, Post, Comentario, Categoria, UserCredentials
 from flask_jwt_extended import create_access_token, JWTManager
 from datetime import timedelta
-from flask_login import (
-    LoginManager,
-    login_user,
-    login_required,
-    logout_user,
-    current_user,
-)
-from werkzeug.security import (
-    check_password_hash,
-    generate_password_hash,
-)
+from schemas import ma, user_schema
 
     
 # --- 2. CONFIGURACIÓN ---
@@ -30,10 +21,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = "demo" # Clave para los mensajes flash
 
 # Inicializa el gestor de JWT
-jwt = JWTManager(app)
 
 db.init_app(app)
 migrate = Migrate(app, db)
+jwt = JWTManager(app)
+ma.init_app(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)  # ¡Añade esta línea!
@@ -57,10 +49,10 @@ def init_db():
 with app.app_context():
     init_db()
 
-# --- Agrega esta función para que LoginManager sepa cómo encontrar a los usuarios ---
 @login_manager.user_loader
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
+    
 # Pone la lista de categorías disponible en todas las plantillas.
 @app.context_processor
 def inject_categories():
@@ -101,7 +93,7 @@ def api_login():
     return jsonify({
         "mensaje": "Login exitoso",
         "token": access_token,
-        "user_id": user.id
+        "user_id": user_schema.dump(user) 
     }), 200
 
 @app.route('/login', methods=['GET', 'POST'])
