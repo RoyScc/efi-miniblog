@@ -6,15 +6,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Usuario, Post, Comentario, Categoria, UserCredentials
 from flask_jwt_extended import create_access_token, JWTManager
 from datetime import timedelta
-from schemas import ma, user_schema
+from schemas import ma, user_schema, users_schema
+from verif_admin import roles_required
 
-    
 # --- 2. CONFIGURACIÓN ---
 app = Flask(__name__)
 
 # Configuración de la base de datos
 app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=2)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:demo@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -52,7 +52,7 @@ with app.app_context():
 @login_manager.user_loader
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
-    
+
 # Pone la lista de categorías disponible en todas las plantillas.
 @app.context_processor
 def inject_categories():
@@ -87,36 +87,36 @@ def api_login():
 
     # En lugar de login_user(user), creo el token:
     
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
     
     # Retorno el token 
     return jsonify({
         "mensaje": "Login exitoso",
         "token": access_token,
-        "user_id": user_schema.dump(user) 
+        "user": user_schema.dump(user) 
     }), 200
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('index'))
+# @app.route('/login', methods=['GET', 'POST'])
+# def login():
+#     if current_user.is_authenticated:
+#         return redirect(url_for('index'))
 
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        user = Usuario.query.filter_by(nombre=username).first()
-        # Verificamos si el usuario existe y si la contraseña es correcta
-        if user and user.credentials and check_password_hash(
-            pwhash=user.credentials.password_hash, 
-            password=password
-        ):
-            login_user(user) # Iniciamos la sesión para el usuario
-            next_page = request.args.get('next') 
-            return redirect(next_page or url_for('index'))
-        else: 
-            flash('Usuario o contraseña inválidos.', 'danger')
+#     if request.method == 'POST':
+#         username = request.form.get('username')
+#         password = request.form.get('password')
+#         user = Usuario.query.filter_by(nombre=username).first()
+#         # Verificamos si el usuario existe y si la contraseña es correcta
+#         if user and user.credentials and check_password_hash(
+#             pwhash=user.credentials.password_hash, 
+#             password=password
+#         ):
+#             login_user(user) # Iniciamos la sesión para el usuario
+#             next_page = request.args.get('next') 
+#             return redirect(next_page or url_for('index'))
+#         else: 
+#             flash('Usuario o contraseña inválidos.', 'danger')
             
-    return render_template('login.html')
+#     return render_template('login.html')
 
 @app.route('/api/register', methods=['POST'])
 def register_user():
@@ -169,8 +169,8 @@ def register_user():
         "mensaje": "Usuario registrado exitosamente",
         "usuario": {
             "id": new_user.id,
-            "username": new_user.nombre, # <-- Arreglado
-            "email": new_user.correo     # <-- Arreglado
+            "username": new_user.nombre, 
+            "email": new_user.correo        
         }
     }), 201
 
@@ -255,6 +255,57 @@ def posts_by_category(category_id):
     categoria = Categoria.query.get_or_404(category_id)
     return render_template('posts_by_category.html', category=categoria)
 
+@app.route('/api/users', methods=['GET'])
+@roles_required(roles=['admin'])
+def get_all_users(): # Obtiene una lista de todos los usuarios (Solo Admin)
+    try:
+        users = Usuario.query.all()
+        
+        return jsonify(users_schema.dump(users)), 200
+    except Exception as e:
+        return jsonify({"error": "Error al obtener usuarios", "detalle": str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['GET', 'PATCH', 'DELETE'])
+@roles_required(roles=['admin'])
+def handle_user(user_id): # Gestiona un usuario específico por ID (Solo Admin)
+    user = Usuario.query.get(user_id)
+
+    if not user:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    #  GET 
+    if request.method == 'GET':
+        # Usamos 'user_schema' (singular) para serializar
+        return jsonify(user_schema.dump(user)), 200
+
+    # PATCH 
+    elif request.method == 'PATCH':
+        data = request.get_json()
+
+        # Un admin puede cambiar el 'role' o 'is_active' de otro usuario
+        if 'role' in data:
+            user.role = data['role']
+        if 'is_active' in data:
+            user.is_active = data['is_active']
+
+        try:
+            db.session.commit()
+            return jsonify({"mensaje": "Usuario actualizado", "user": user_schema.dump(user)}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": "Error al actualizar usuario", "detalle": str(e)}), 500
+
+    #  DELETE 
+    elif request.method == 'DELETE':
+        try:
+            # OJO: Borrar un usuario puede dar error si tiene posts/comentarios
+            # (Depende de cómo esté configurada tu BD con 'on delete')
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({"mensaje": f"Usuario con id {user_id} eliminado"}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": "Error al eliminar usuario", "detalle": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
