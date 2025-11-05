@@ -74,7 +74,7 @@ class Comentario(db.Model):
         default=lambda: datetime.now(timezone.utc)
     )
 
-    
+    is_visible = db.Column(db.Boolean, default=True, nullable=False)
 
     autor_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False)
