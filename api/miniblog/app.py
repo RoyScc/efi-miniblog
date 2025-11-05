@@ -96,27 +96,27 @@ def api_login():
         "user": user_schema.dump(user) 
     }), 200
 
-# @app.route('/login', methods=['GET', 'POST'])
-# def login():
-#     if current_user.is_authenticated:
-#         return redirect(url_for('index'))
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+     if current_user.is_authenticated:
+         return redirect(url_for('index'))
 
-#     if request.method == 'POST':
-#         username = request.form.get('username')
-#         password = request.form.get('password')
-#         user = Usuario.query.filter_by(nombre=username).first()
-#         # Verificamos si el usuario existe y si la contraseña es correcta
-#         if user and user.credentials and check_password_hash(
-#             pwhash=user.credentials.password_hash, 
-#             password=password
-#         ):
-#             login_user(user) # Iniciamos la sesión para el usuario
-#             next_page = request.args.get('next') 
-#             return redirect(next_page or url_for('index'))
-#         else: 
-#             flash('Usuario o contraseña inválidos.', 'danger')
-            
-#     return render_template('login.html')
+     if request.method == 'POST':
+         username = request.form.get('username')
+         password = request.form.get('password')
+         user = Usuario.query.filter_by(nombre=username).first()
+         # Verificamos si el usuario existe y si la contraseña es correcta
+         if user and user.credentials and check_password_hash(
+             pwhash=user.credentials.password_hash, 
+             password=password
+         ):
+             login_user(user) # Iniciamos la sesión para el usuario
+             next_page = request.args.get('next') 
+             return redirect(next_page or url_for('index'))
+         else: 
+             flash('Usuario o contraseña inválidos.', 'danger')
+        
+         return render_template('login.html')
 
 @app.route('/api/register', methods=['POST'])
 def register_user():
