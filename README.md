@@ -16,3 +16,5 @@ Este es un proyecto simple de blog desarrollado con **Flask**, que permite a los
 ##  Integrantes
   * Roy Scheurer
   * Valentina Alaniz
+  * Villaverde Anabella
+
