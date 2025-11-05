@@ -7,6 +7,8 @@ from models import db, Usuario, Post, Comentario, Categoria, UserCredentials
 from flask_jwt_extended import create_access_token, JWTManager
 from datetime import timedelta
 from schemas import ma, user_schema, users_schema
+from schemas.post_comment_schemas import post_schema, posts_schema, comment_schema, comments_schema
+
 from verif_admin import roles_required
 
 # --- 2. CONFIGURACIÓN ---
