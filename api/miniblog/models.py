@@ -73,6 +73,9 @@ class Comentario(db.Model):
         db.DateTime, 
         default=lambda: datetime.now(timezone.utc)
     )
+
+    
+
     autor_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False)
 
