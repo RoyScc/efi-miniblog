@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/roy/Escritorio/roy/miniblog/efi-miniblog/api/miniblog/env
+set -gx VIRTUAL_ENV /home/anabella/Escritorio/efi_python_2025/efi-miniblog/api/miniblog/env
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

@@ -16,7 +16,7 @@ app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:demo@localhost/miniblog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Anabella2025!@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = "demo" # Clave para los mensajes flash
 
