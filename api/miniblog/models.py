@@ -17,6 +17,7 @@ class Usuario(db.Model, UserMixin): # Usuarios registrados en el miniblog
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     posts = db.relationship('Post', backref='autor', lazy=True)
+
     comentarios = db.relationship('Comentario', backref='autor', lazy=True)
 
     def __str__(self):
@@ -50,6 +51,15 @@ class Post(db.Model):
         db.DateTime, 
         default=lambda: datetime.now(timezone.utc)
     )
+
+#se verifica si el post esta publicsado  
+    is_published = db.Column(db.Boolean, default=True, nullable=False)
+    updated_at = db.Column( #ultima fecha de actualización
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
     categoria_id = db.Column(db.Integer, db.ForeignKey('categorias.id'), nullable=False)
     autor_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     comentarios = db.relationship('Comentario', backref='post', lazy=True)
