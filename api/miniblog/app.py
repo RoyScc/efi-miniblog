@@ -8,8 +8,8 @@ from flask_jwt_extended import create_access_token, JWTManager
 from datetime import timedelta
 from schemas import ma, user_schema, users_schema
 from schemas.post_comment_schemas import post_schema, posts_schema, comment_schema, comments_schema
-
 from verif_admin import roles_required
+from views.posts_api import PostAPI
 
 # --- 2. CONFIGURACIÓN ---
 app = Flask(__name__)
@@ -87,9 +87,11 @@ def api_login():
     ):
         return jsonify({"error": "Credenciales inválidas"}), 401
 
-    # En lugar de login_user(user), creo el token:
     
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"role": user.role, "email": user.correo}
+)
     
     # Retorno el token 
     return jsonify({
@@ -308,6 +310,12 @@ def handle_user(user_id): # Gestiona un usuario específico por ID (Solo Admin)
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": "Error al eliminar usuario", "detalle": str(e)}), 500
+
+post_view = PostAPI.as_view('posts_api')
+app.add_url_rule('/api/posts', defaults={'post_id': None}, view_func=post_view, methods=['GET'])
+app.add_url_rule('/api/posts', view_func=post_view, methods=['POST'])
+app.add_url_rule('/api/posts/<int:post_id>', view_func=post_view, methods=['GET', 'PUT', 'DELETE'])
+           
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
