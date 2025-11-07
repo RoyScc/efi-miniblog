@@ -10,6 +10,8 @@ from schemas import ma, user_schema, users_schema
 from schemas.post_comment_schemas import post_schema, posts_schema, comment_schema, comments_schema
 from verif_admin import roles_required
 from views.posts_api import PostAPI
+from flask_jwt_extended import get_jwt_identity, get_jwt
+
 
 # --- 2. CONFIGURACIÓN ---
 app = Flask(__name__)
@@ -310,6 +312,29 @@ def handle_user(user_id): # Gestiona un usuario específico por ID (Solo Admin)
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": "Error al eliminar usuario", "detalle": str(e)}), 500
+        
+@app.route("/api/comments/<int:comment_id>", methods=["DELETE"])
+@roles_required(["admin", "moderator"])
+def delete_comment(comment_id):
+    # Obtener el comentario
+    comentario = Comentario.query.get(comment_id)
+    if not comentario:
+        return jsonify({"error": "Comentario no encontrado"}), 404
+
+    # Obtener el id del usuario que hace la petición
+    usuario_id = get_jwt_identity()
+    claims = get_jwt()
+
+    # Verificar si el usuario es autor del comentario o tiene rol admin/moderator
+    if comentario.autor_id != int(usuario_id) and claims.get("role") not in ["admin", "moderator"]:
+        return jsonify({"error": "No tienes permiso para eliminar este comentario"}), 403
+
+    # Eliminar el comentario
+    db.session.delete(comentario)
+    db.session.commit()
+
+    return "", 204  # No Content
+
 
 post_view = PostAPI.as_view('posts_api')
 app.add_url_rule('/api/posts', defaults={'post_id': None}, view_func=post_view, methods=['GET'])
