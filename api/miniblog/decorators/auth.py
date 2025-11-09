@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import Usuario
+from ..models import Usuario
 
 def roles_required(roles=[]):
     # verifica el rol del usuario DESDE UN JWT.

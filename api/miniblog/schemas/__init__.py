@@ -1,14 +1,3 @@
-from flask_marshmallow import Marshmallow
-from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from models import Usuario
-
-ma = Marshmallow()
-
-class UserSchema(SQLAlchemyAutoSchema):
-    class Meta:
-        model = Usuario
-        load_instance = True
-        fields = ('id', 'nombre', 'correo', 'role', 'is_active')
-
-user_schema = UserSchema()
-users_schema = UserSchema(many=True)
+# Importa los esquemas de tus otros archivos
+from .user_schemas import user_schema, users_schema
+from .post_comment_schemas import post_schema, posts_schema, comment_schema, comments_schema

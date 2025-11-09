@@ -1,42 +1,76 @@
 # --- 1. IMPORTACIONES ---
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask
 from flask_migrate import Migrate
-from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Usuario, Post, Comentario, Categoria, UserCredentials
-from flask_jwt_extended import create_access_token, JWTManager
+from flask_login import LoginManager
+from flask_jwt_extended import JWTManager
 from datetime import timedelta
-from schemas import ma, user_schema, users_schema
-from schemas.post_comment_schemas import post_schema, posts_schema, comment_schema, comments_schema
-from verif_admin import roles_required
-from views.posts_api import PostAPI
-from flask_jwt_extended import get_jwt_identity, get_jwt
+from .extensions import db, ma
+from .models import Usuario
+from .views.main_views import main_bp
+from .views.auth_views import auth_bp
+from .views.user_views import user_bp
+from .views.posts_api import api_bp
+try:
+    from .models import Usuario
+    from .extensions import db, ma
+except ImportError: 
+    print("Error: No se pudieron importar 'db', 'ma' o 'Usuario'.")
+    print("Asegúrate de haber movido 'models.py' a 'models/__init__.py'")
+    print("y de haber movido 'schemas.py' a 'schemas/user_schemas.py' (e importado 'ma' en 'schemas/__init__.py')")
+
+try:
+    from .views.main_views import main_bp
+    from .views.auth_views import auth_bp
+    from .views.user_views import user_bp
+    from .views.posts_api import api_bp 
+    
+except ImportError as e:
+    print(f"Error importando Blueprints: {e}")
+    print("Asegúrate de que tus archivos en la carpeta /views (main_views.py, auth_views.py, etc.) existan y definan un Blueprint.")
 
 
-# --- 2. CONFIGURACIÓN ---
+# --- 4. CONFIGURACIÓN DE LA APLICACIÓN ---
 app = Flask(__name__)
 
-# Configuración de la base de datos
 app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Anabella2025!@localhost/miniblog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:demo@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = "demo" # Clave para los mensajes flash
+app.config["SECRET_KEY"] = "demo" # Renombrado de 'app.secret_key'
 
-# Inicializa el gestor de JWT
-
+# --- 5. INICIALIZACIÓN DE EXTENSIONES ---
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 ma.init_app(app)
 
+# Configuración de Flask-Login (para templates)
 login_manager = LoginManager()
-login_manager.init_app(app)  # ¡Añade esta línea!
-login_manager.login_view = 'login' # Define la ruta de login
+login_manager.init_app(app) 
+# Apuntamos a la vista de login DENTRO del blueprint 'auth_views'
+login_manager.login_view = 'auth_views.login' 
 
+
+@login_manager.user_loader
+def load_user(user_id):
+    # Esta función es requerida por Flask-Login para saber cómo cargar un usuario
+    return Usuario.query.get(int(user_id))
+
+# --- 6. REGISTRO DE BLUEPRINTS ---
+# Le decimos a nuestra app principal que "active" todas las rutas
+# definidas en nuestros archivos de vistas.
+app.register_blueprint(main_bp)       # Rutas de templates (/, /post/<id>, etc.)
+app.register_blueprint(auth_bp)       # Rutas de Auth (/login, /api/login, etc.)
+app.register_blueprint(user_bp)       # Rutas de User API (/api/users)
+app.register_blueprint(api_bp)        # Rutas de Post/Comment API (/api/posts, /api/comments)
+
+
+# --- 7. HELPERS DE INICIALIZACIÓN DE BD ---
+# (Dejamos esto aquí para correrlo al iniciar)
 def init_db():
     with app.app_context():
+        # Importamos todos los modelos aquí para que create_all los vea
+        from .models import Usuario, Post, Comentario, Categoria, UserCredentials
         db.create_all()
         
         # Verificar y crear categorías si no existen
@@ -53,294 +87,6 @@ def init_db():
 with app.app_context():
     init_db()
 
-@login_manager.user_loader
-def load_user(user_id):
-    return Usuario.query.get(int(user_id))
-
-# Pone la lista de categorías disponible en todas las plantillas.
-@app.context_processor
-def inject_categories():
-    categorias = Categoria.query.order_by(Categoria.nombre).all()
-    return dict(all_categories=categorias)
-
-
-# --- 4. RUTAS Y VISTAS ---
-
-@app.route('/')
-def index():
-    posts = Post.query.order_by(Post.fecha_creacion.desc()).all()
-    return render_template('index.html', posts=posts)
-
-
-@app.route('/api/login', methods=['POST'])
-def api_login():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-
-    if not username or not password:
-        return jsonify({"error": "Faltan username o password"}), 400
-
-    user = Usuario.query.filter_by(nombre=username).first()
-
-    if not user or not user.credentials or not check_password_hash(
-        pwhash=user.credentials.password_hash, 
-        password=password
-    ):
-        return jsonify({"error": "Credenciales inválidas"}), 401
-
-    
-    access_token = create_access_token(
-        identity=str(user.id),
-        additional_claims={"role": user.role, "email": user.correo}
-)
-    
-    # Retorno el token 
-    return jsonify({
-        "mensaje": "Login exitoso",
-        "token": access_token,
-        "user": user_schema.dump(user) 
-    }), 200
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-     if current_user.is_authenticated:
-         return redirect(url_for('index'))
-
-     if request.method == 'POST':
-         username = request.form.get('username')
-         password = request.form.get('password')
-         user = Usuario.query.filter_by(nombre=username).first()
-         # Verificamos si el usuario existe y si la contraseña es correcta
-         if user and user.credentials and check_password_hash(
-             pwhash=user.credentials.password_hash, 
-             password=password
-         ):
-             login_user(user) # Iniciamos la sesión para el usuario
-             next_page = request.args.get('next') 
-             return redirect(next_page or url_for('index'))
-         else: 
-             flash('Usuario o contraseña inválidos.', 'danger')
-        
-         return render_template('login.html')
-
-@app.route('/api/register', methods=['POST'])
-def register_user():
-    data = request.get_json()
-    
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
-
-    # 2.2. Validar que los datos existan
-    if not username or not email or not password:
-        return jsonify({"error": "Faltan datos (username, email o password)"}), 400
-
-    # 2.3. Validar email único (Checklist)
-    existing_user = Usuario.query.filter_by(correo=email).first()
-    if existing_user:
-        return jsonify({"error": "El email ya está registrado"}), 409
-
-    # 3.1. Hashear la contraseña por seguridad
-    hashed_password = generate_password_hash(password)
-
-    # 3.2. Crear el nuevo Usuario Y sus Credenciales
-    try:
-        # 1. Crea el Usuario (SIN contraseña)
-        new_user = Usuario(
-            nombre=username,
-            correo=email
-        )
-        
-        # 2. Crea las Credenciales y las enlaza al usuario
-        new_credentials = UserCredentials(
-            password_hash=hashed_password,
-            user=new_user  # <-- ¡La magia de SQLAlchemy enlaza el ID!
-        )
-
-        # 3. Añade AMBOS a la sesión
-        db.session.add(new_user)
-        db.session.add(new_credentials)
-        
-        # 4. ¡Guarda todo en la base de datos!
-        db.session.commit()
-
-    except Exception as e:
-        db.session.rollback() # Deshacer cambios si algo falla
-        return jsonify({"error": "Error al guardar en la base de datos", "detalle": str(e)}), 500
-
-    # 3.5. Responder con éxito
-    # (¡OJO! Tu modelo usa 'nombre' y 'correo', no 'username' y 'email')
-    return jsonify({
-        "mensaje": "Usuario registrado exitosamente",
-        "usuario": {
-            "id": new_user.id,
-            "username": new_user.nombre, 
-            "email": new_user.correo        
-        }
-    }), 201
-
-# @app.route('/register', methods=['GET', 'POST'])
-# def register():
-#     if request.method == 'POST':
-#         username = request.form.get('username')
-#         email = request.form.get('email')
-#         password = request.form.get('password')
-        
-#         user_existente = Usuario.query.filter_by(nombre=username).first()
-#         if user_existente:
-#             flash('El nombre de usuario ya existe.', 'danger')
-#             return redirect(url_for('register'))
-            
-#         hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-#         nuevo_usuario = Usuario(nombre=username, correo=email, contrasena=hashed_password)
-#         print(f"Usuario: {username}, Contraseña ingresada: {password}, Hash en DB: {hashed_password}")
-
-#         db.session.add(nuevo_usuario)
-#         db.session.commit()
-#         flash('¡Registro exitoso! Por favor, inicia sesión.', 'success')
-#         return redirect(url_for('login'))
-#     return render_template('register.html')
-
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('Has cerrado sesión correctamente.', 'success')
-    return redirect(url_for('index'))
-
-
-@app.route('/post/<int:post_id>', methods=['GET', 'POST'])
-@login_required 
-def post_detail(post_id):
-    post = Post.query.get_or_404(post_id)
-
-    if request.method == 'POST':
-        texto_comentario = request.form.get('texto_comentario')
-        
-        if texto_comentario and current_user.is_authenticated:
-            nuevo_comentario = Comentario(
-                texto=texto_comentario,
-                autor_id=current_user.id,
-                post_id=post.id)
-            db.session.add(nuevo_comentario)
-            db.session.commit()
-            flash('¡Comentario añadido con éxito!', 'success')
-            return redirect(url_for('post_detail', post_id=post.id))
-        else:
-            flash('El autor y el texto del comentario son obligatorios.', 'danger')
-
-    return render_template('post_detail.html', post=post)
-
-@app.route('/create_post', methods=['GET', 'POST'])
-@login_required 
-def create_post():
-    if request.method == 'POST':
-        titulo = request.form.get('title')
-        contenido = request.form.get('content')
-        autor_id = request.form.get('autor_id')
-        categoria_id = request.form.get('categoria_id')
-        if titulo and contenido and autor_id:
-            nuevo_post = Post(titulo=titulo, contenido=contenido, autor_id=autor_id, categoria_id=categoria_id)
-            db.session.add(nuevo_post)
-            db.session.commit()
-
-            flash('¡Post creado con éxito!', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('Título, contenido y autor son campos obligatorios.', 'danger')
-            return redirect(url_for('create_post'))
-
-    usuarios = Usuario.query.all()
-    categorias = Categoria.query.all()
-    return render_template('create_post.html', users=usuarios, categorias=categorias)
-
-@app.route('/category/<int:category_id>')
-def posts_by_category(category_id):
-    categoria = Categoria.query.get_or_404(category_id)
-    return render_template('posts_by_category.html', category=categoria)
-
-@app.route('/api/users', methods=['GET'])
-@roles_required(roles=['admin'])
-def get_all_users(): # Obtiene una lista de todos los usuarios (Solo Admin)
-    try:
-        users = Usuario.query.all()
-        
-        return jsonify(users_schema.dump(users)), 200
-    except Exception as e:
-        return jsonify({"error": "Error al obtener usuarios", "detalle": str(e)}), 500
-
-@app.route('/api/users/<int:user_id>', methods=['GET', 'PATCH', 'DELETE'])
-@roles_required(roles=['admin'])
-def handle_user(user_id): # Gestiona un usuario específico por ID (Solo Admin)
-    user = Usuario.query.get(user_id)
-
-    if not user:
-        return jsonify({"error": "Usuario no encontrado"}), 404
-
-    #  GET 
-    if request.method == 'GET':
-        # Usamos 'user_schema' (singular) para serializar
-        return jsonify(user_schema.dump(user)), 200
-
-    # PATCH 
-    elif request.method == 'PATCH':
-        data = request.get_json()
-
-        # Un admin puede cambiar el 'role' o 'is_active' de otro usuario
-        if 'role' in data:
-            user.role = data['role']
-        if 'is_active' in data:
-            user.is_active = data['is_active']
-
-        try:
-            db.session.commit()
-            return jsonify({"mensaje": "Usuario actualizado", "user": user_schema.dump(user)}), 200
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": "Error al actualizar usuario", "detalle": str(e)}), 500
-
-    #  DELETE 
-    elif request.method == 'DELETE':
-        try:
-            # OJO: Borrar un usuario puede dar error si tiene posts/comentarios
-            # (Depende de cómo esté configurada tu BD con 'on delete')
-            db.session.delete(user)
-            db.session.commit()
-            return jsonify({"mensaje": f"Usuario con id {user_id} eliminado"}), 200
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": "Error al eliminar usuario", "detalle": str(e)}), 500
-        
-@app.route("/api/comments/<int:comment_id>", methods=["DELETE"])
-@roles_required(["admin", "moderator"])
-def delete_comment(comment_id):
-    # Obtener el comentario
-    comentario = Comentario.query.get(comment_id)
-    if not comentario:
-        return jsonify({"error": "Comentario no encontrado"}), 404
-
-    # Obtener el id del usuario que hace la petición
-    usuario_id = get_jwt_identity()
-    claims = get_jwt()
-
-    # Verificar si el usuario es autor del comentario o tiene rol admin/moderator
-    if comentario.autor_id != int(usuario_id) and claims.get("role") not in ["admin", "moderator"]:
-        return jsonify({"error": "No tienes permiso para eliminar este comentario"}), 403
-
-    # Eliminar el comentario
-    db.session.delete(comentario)
-    db.session.commit()
-
-    return "", 204  # No Content
-
-
-post_view = PostAPI.as_view('posts_api')
-app.add_url_rule('/api/posts', defaults={'post_id': None}, view_func=post_view, methods=['GET'])
-app.add_url_rule('/api/posts', view_func=post_view, methods=['POST'])
-app.add_url_rule('/api/posts/<int:post_id>', view_func=post_view, methods=['GET', 'PUT', 'DELETE'])
-           
-
+# --- 8. PUNTO DE ENTRADA ---
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

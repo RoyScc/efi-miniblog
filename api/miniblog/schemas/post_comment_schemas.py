@@ -1,8 +1,8 @@
 from flask_marshmallow import Marshmallow
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from models import Post, Comentario
-
-ma = Marshmallow()
+from ..extensions import ma
+from ..models import Post, Comentario, Usuario
+    
 
 class PostSchema(SQLAlchemyAutoSchema):
     class Meta:

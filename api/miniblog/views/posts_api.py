@@ -1,8 +1,11 @@
 from flask.views import MethodView
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from models import db, Post, Usuario
-from schemas.post_comment_schemas import post_schema, posts_schema
+from ..models import db, Post, Usuario, Comentario
+from ..schemas.post_comment_schemas import post_schema, posts_schema
+from ..decorators.auth import roles_required
+
+api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 def is_author_or_admin(user_id, resource_owner_id, claims):
     if claims.get("role") == "admin":
@@ -92,3 +95,27 @@ class PostAPI(MethodView):
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": "Error eliminando", "detalle": str(e)}), 500
+
+post_view = PostAPI.as_view('posts_api')
+api_bp.add_url_rule('/posts', defaults={'post_id': None}, view_func=post_view, methods=['GET'])
+api_bp.add_url_rule('/posts', view_func=post_view, methods=['POST'])
+api_bp.add_url_rule('/posts/<int:post_id>', view_func=post_view, methods=['GET', 'PUT', 'DELETE'])
+
+
+@api_bp.route("/comments/<int:comment_id>", methods=["DELETE"])
+@roles_required(["admin", "moderator"])
+def delete_comment(comment_id):
+    comentario = Comentario.query.get(comment_id)
+    if not comentario:
+        return jsonify({"error": "Comentario no encontrado"}), 404
+
+    usuario_id = get_jwt_identity()
+    claims = get_jwt()
+
+    if comentario.autor_id != int(usuario_id) and claims.get("role") not in ["admin", "moderator"]:
+        return jsonify({"error": "No tienes permiso para eliminar este comentario"}), 403
+
+    db.session.delete(comentario)
+    db.session.commit()
+
+    return "", 204
