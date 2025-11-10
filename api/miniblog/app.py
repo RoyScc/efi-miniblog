@@ -1,4 +1,3 @@
-# --- 1. IMPORTACIONES ---
 from flask import Flask
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -29,7 +28,6 @@ except ImportError as e:
     print("Asegúrate de que tus archivos en la carpeta /views (main_views.py, auth_views.py, etc.) existan y definan un Blueprint.")
 
 
-# --- 4. CONFIGURACIÓN DE LA APLICACIÓN ---
 app = Flask(__name__)
 
 app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
@@ -38,42 +36,33 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Anabella2025!@loca
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["SECRET_KEY"] = "demo" # Renombrado de 'app.secret_key'
 
-# --- 5. INICIALIZACIÓN DE EXTENSIONES ---
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 ma.init_app(app)
 
-# Configuración de Flask-Login (para templates)
 login_manager = LoginManager()
 login_manager.init_app(app) 
-# Apuntamos a la vista de login DENTRO del blueprint 'auth_views'
 login_manager.login_view = 'auth_views.login' 
 
 
 @login_manager.user_loader
 def load_user(user_id):
-    # Esta función es requerida por Flask-Login para saber cómo cargar un usuario
     return Usuario.query.get(int(user_id))
 
-# --- 6. REGISTRO DE BLUEPRINTS ---
-# Le decimos a nuestra app principal que "active" todas las rutas
-# definidas en nuestros archivos de vistas.
+
 app.register_blueprint(main_bp)       # Rutas de templates (/, /post/<id>, etc.)
 app.register_blueprint(auth_bp)       # Rutas de Auth (/login, /api/login, etc.)
 app.register_blueprint(user_bp)       # Rutas de User API (/api/users)
 app.register_blueprint(api_bp)        # Rutas de Post/Comment API (/api/posts, /api/comments)
 
 
-# --- 7. HELPERS DE INICIALIZACIÓN DE BD ---
-# (Dejamos esto aquí para correrlo al iniciar)
+
 def init_db():
     with app.app_context():
-        # Importamos todos los modelos aquí para que create_all los vea
         from .models import Usuario, Post, Comentario, Categoria, UserCredentials
         db.create_all()
         
-        # Verificar y crear categorías si no existen
         categorias_a_crear = ['Tecnología', 'Viajes', 'General', 'Cocina', 'Deportes', 'Cine', 'Música']
         for nombre_cat in categorias_a_crear:
             existe = Categoria.query.filter_by(nombre=nombre_cat).first()
@@ -83,10 +72,8 @@ def init_db():
         
         db.session.commit()
 
-# Inicialización de la base de datos y migraciones
 with app.app_context():
     init_db()
 
-# --- 8. PUNTO DE ENTRADA ---
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

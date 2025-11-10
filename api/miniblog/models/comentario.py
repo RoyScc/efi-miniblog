@@ -1,4 +1,4 @@
-from ..extensions import db
+from miniblog.extensions import db
 from datetime import datetime, timezone
 
 class Comentario(db.Model):
@@ -14,3 +14,5 @@ class Comentario(db.Model):
 
     def __repr__(self):
         return f'<Comentario {self.id}>'
+    
+    

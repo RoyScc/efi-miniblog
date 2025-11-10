@@ -2,7 +2,7 @@ from flask.views import MethodView
 from flask import request, jsonify, current_app, Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..models import db, Post, Usuario, Comentario
-from ..schemas.post_comment_schemas import post_schema, posts_schema
+from ..schemas.post_schema import post_schema, posts_schema
 from ..decorators.auth import roles_required
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -32,9 +32,7 @@ class PostAPI(MethodView):
         if errors:
             return jsonify({"error": "Validación", "detalle": errors}), 400
 
-        #(guardamos id de usuario como string)
         user_id = get_jwt_identity()
-        #campos esperados: titulo, contenido, categoria_id, is_published opcional
         titulo = data.get("titulo")
         contenido = data.get("contenido")
         categoria_id = data.get("categoria_id")

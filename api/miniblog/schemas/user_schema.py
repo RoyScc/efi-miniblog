@@ -1,6 +1,6 @@
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from ..models import Usuario      # <-- 1. Importa 'Usuario' (el paquete)
-from ..extensions import ma       # <-- 2. Importa 'ma' (de extensions)
+from ..models import Usuario     
+from ..extensions import ma      
 
 class UserSchema(SQLAlchemyAutoSchema):
     class Meta:

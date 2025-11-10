@@ -3,4 +3,4 @@ venv
 /mientorno
 static
 templates
-
+__pycache__
