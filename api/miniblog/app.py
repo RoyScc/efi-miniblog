@@ -32,7 +32,7 @@ app = Flask(__name__)
 
 app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Anabella2025!@localhost/miniblog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://miniblog_user:Tomo@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["SECRET_KEY"] = "demo" # Renombrado de 'app.secret_key'
 
@@ -72,8 +72,8 @@ def init_db():
         
         db.session.commit()
 
-with app.app_context():
-    init_db()
+#with app.app_context():
+    #init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
