@@ -1,3 +1,6 @@
-/api/miniblog/__pycache__/
-/api/miniblog/env/
+env
+venv
+/mientorno
+static
+templates
 
