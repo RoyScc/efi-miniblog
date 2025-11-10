@@ -10,6 +10,7 @@ from .views.auth_views import auth_bp
 from .views.user_views import user_bp
 from .views.posts_api import api_bp
 from .views.categories_views import categories_bp
+from .views.stats_views import stats_bp
 try:
     from .models import Usuario
     from .extensions import db, ma
@@ -23,6 +24,8 @@ try:
     from .views.auth_views import auth_bp
     from .views.user_views import user_bp
     from .views.posts_api import api_bp 
+    from .views.categories_views import categories_bp
+    from .views.stats_views import stats_bp
     
 except ImportError as e:
     print(f"Error importando Blueprints: {e}")
@@ -57,6 +60,7 @@ app.register_blueprint(auth_bp)       # Rutas de Auth (/login, /api/login, etc.)
 app.register_blueprint(user_bp)       # Rutas de User API (/api/users)
 app.register_blueprint(api_bp)        # Rutas de Post/Comment API (/api/posts, /api/comments)
 app.register_blueprint(categories_bp) # Rutas de Category API (/api/categories)
+app.register_blueprint(stats_bp)
 
 
 def init_db():
