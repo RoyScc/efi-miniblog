@@ -9,6 +9,7 @@ from .views.main_views import main_bp
 from .views.auth_views import auth_bp
 from .views.user_views import user_bp
 from .views.posts_api import api_bp
+from .views.categories_views import categories_bp
 try:
     from .models import Usuario
     from .extensions import db, ma
@@ -55,7 +56,7 @@ app.register_blueprint(main_bp)       # Rutas de templates (/, /post/<id>, etc.)
 app.register_blueprint(auth_bp)       # Rutas de Auth (/login, /api/login, etc.)
 app.register_blueprint(user_bp)       # Rutas de User API (/api/users)
 app.register_blueprint(api_bp)        # Rutas de Post/Comment API (/api/posts, /api/comments)
-
+app.register_blueprint(categories_bp) # Rutas de Category API (/api/categories)
 
 
 def init_db():

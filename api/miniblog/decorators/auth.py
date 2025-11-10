@@ -24,3 +24,7 @@ def roles_required(roles=[]):
             return fn(*args, **kwargs)
         return wrapper
     return decorator
+
+admin_required = roles_required(roles=['admin'])
+mod_required = roles_required(roles=['admin', 'mod'])
+user_required = roles_required(roles=['user', 'mod', 'admin'])
