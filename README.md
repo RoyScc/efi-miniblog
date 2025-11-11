@@ -7,6 +7,9 @@
 
 Este proyecto implementa una API REST segura para un miniblog, utilizando **Flask**, **Autenticación JWT**
 
+**Nota:** Todos los cambios recientes del proyecto se encuentran en la rama `dev`.
+
+
 ---
 
 ## Requisitos e Instalación
@@ -107,4 +110,5 @@ Este proyecto implementa una API REST segura para un miniblog, utilizando **Flas
 * **`src/repositories`**: Lógica de acceso a datos.
 * **`src/services`**: Lógica de negocio principal.
 * **`src/views`**: Controladores (MethodView).
+
 * **`src/decorators`**: Decoradores personalizados para la verificación de roles
