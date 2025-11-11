@@ -9,6 +9,8 @@ from .views.main_views import main_bp
 from .views.auth_views import auth_bp
 from .views.user_views import user_bp
 from .views.posts_api import api_bp
+from .views.categories_views import categories_bp
+from .views.stats_views import stats_bp
 try:
     from .models import Usuario
     from .extensions import db, ma
@@ -22,6 +24,8 @@ try:
     from .views.auth_views import auth_bp
     from .views.user_views import user_bp
     from .views.posts_api import api_bp 
+    from .views.categories_views import categories_bp
+    from .views.stats_views import stats_bp
     
 except ImportError as e:
     print(f"Error importando Blueprints: {e}")
@@ -32,7 +36,7 @@ app = Flask(__name__)
 
 app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Anabella2025!@localhost/miniblog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://miniblog_user:Tomo@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["SECRET_KEY"] = "demo" # Renombrado de 'app.secret_key'
 
@@ -55,7 +59,8 @@ app.register_blueprint(main_bp)       # Rutas de templates (/, /post/<id>, etc.)
 app.register_blueprint(auth_bp)       # Rutas de Auth (/login, /api/login, etc.)
 app.register_blueprint(user_bp)       # Rutas de User API (/api/users)
 app.register_blueprint(api_bp)        # Rutas de Post/Comment API (/api/posts, /api/comments)
-
+app.register_blueprint(categories_bp) # Rutas de Category API (/api/categories)
+app.register_blueprint(stats_bp)
 
 
 def init_db():
@@ -72,8 +77,8 @@ def init_db():
         
         db.session.commit()
 
-with app.app_context():
-    init_db()
+#with app.app_context():
+    #init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
