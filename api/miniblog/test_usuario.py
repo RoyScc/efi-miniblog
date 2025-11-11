@@ -1,14 +1,13 @@
-# test_usuario.py
+
 from app import app, db
 from models import Usuario
 from datetime import datetime
 
 with app.app_context():
-    # Verificar si ya existe el usuario "Admin"
     usuario_existente = Usuario.query.filter_by(nombre="Admin").first()
     
     if not usuario_existente:
-        # Crear el usuario si no existe
+        
         usuario = Usuario(
             nombre="Admin",
             correo="admin@example.com",
@@ -23,7 +22,7 @@ with app.app_context():
     else:
         print("El usuario 'Admin' ya existe:", usuario_existente.nombre)
 
-    # Mostrar todos los usuarios
+   
     usuarios = Usuario.query.all()
     print("Usuarios en la base de datos:")
     for u in usuarios:

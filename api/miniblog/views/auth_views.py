@@ -60,11 +60,10 @@ def register_user():
         "usuario": { "id": new_user.id, "username": new_user.nombre, "email": new_user.correo }
     }), 201
 
-# Ruta de Template para Login
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
      if current_user.is_authenticated:
-         return redirect(url_for('index')) # 'index' debe estar en otro blueprint
+         return redirect(url_for('index')) 
      if request.method == 'POST':
          username = request.form.get('username')
          password = request.form.get('password')
@@ -75,7 +74,6 @@ def login():
          ):
              login_user(user)
              next_page = request.args.get('next') 
-             # 'index' se referenciará como 'main.index' (blueprint.función)
              return redirect(next_page or url_for('main.index')) 
          else: 
              flash('Usuario o contraseña inválidos.', 'danger')

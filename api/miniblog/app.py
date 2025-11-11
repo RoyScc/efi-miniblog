@@ -38,7 +38,7 @@ app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://miniblog_user:Tomo@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config["SECRET_KEY"] = "demo" # Renombrado de 'app.secret_key'
+app.config["SECRET_KEY"] = "demo" 
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -55,11 +55,11 @@ def load_user(user_id):
     return Usuario.query.get(int(user_id))
 
 
-app.register_blueprint(main_bp)       # Rutas de templates (/, /post/<id>, etc.)
-app.register_blueprint(auth_bp)       # Rutas de Auth (/login, /api/login, etc.)
-app.register_blueprint(user_bp)       # Rutas de User API (/api/users)
-app.register_blueprint(api_bp)        # Rutas de Post/Comment API (/api/posts, /api/comments)
-app.register_blueprint(categories_bp) # Rutas de Category API (/api/categories)
+app.register_blueprint(main_bp)      
+app.register_blueprint(auth_bp)       
+app.register_blueprint(user_bp)       
+app.register_blueprint(api_bp)        
+app.register_blueprint(categories_bp) 
 app.register_blueprint(stats_bp)
 
 

@@ -18,7 +18,6 @@ def is_author_or_admin(user_id, resource_owner_id, claims):
 class PostAPI(MethodView):
     def get(self, post_id=None):
         if post_id is None:
-            #posts publicados
             posts = Post.query.filter_by(is_published=True).order_by(Post.fecha_creacion.desc()).all()
             return jsonify(posts_schema.dump(posts)), 200
         else:

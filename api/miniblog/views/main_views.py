@@ -7,11 +7,9 @@ from flask_login import login_required, current_user
 from ..schemas import user_schema
 from ..models import db, Post, Comentario, Categoria, Usuario
 
-# 1. Creamos el Blueprint. Lo llamaremos 'main'.
 main_bp = Blueprint('main', __name__)
 
 
-# 2. Cambiamos todos los @app.route por @main_bp.route
 @main_bp.route('/')
 def index():
     posts = Post.query.order_by(Post.fecha_creacion.desc()).all()
@@ -35,7 +33,6 @@ def post_detail(post_id):
             db.session.commit()
             flash('¡Comentario añadido con éxito!', 'success')
             
-            # 3. Actualizamos url_for() para usar el Blueprint
             return redirect(url_for('main.post_detail', post_id=post.id))
         else:
             flash('El autor y el texto del comentario son obligatorios.', 'danger')
@@ -49,7 +46,7 @@ def create_post():
     if request.method == 'POST':
         titulo = request.form.get('title')
         contenido = request.form.get('content')
-        autor_id = request.form.get('autor_id') # Tu lógica original
+        autor_id = request.form.get('autor_id') 
         categoria_id = request.form.get('categoria_id')
         
         if titulo and contenido and autor_id:
