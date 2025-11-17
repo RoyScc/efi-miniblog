@@ -3,3 +3,6 @@ venv
 /mientorno
 static
 templates
+__pycache__/
+*.py[cod]
+
