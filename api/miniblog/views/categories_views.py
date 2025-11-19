@@ -49,7 +49,6 @@ def update_category(id):
     if existing_cat and existing_cat.id != id:
         return jsonify({"msg": "Ese nombre de categoría ya está en uso."}), 400
     
-    # Actualiza el nombre
     categoria.nombre = data['nombre']
     
     try:

@@ -46,7 +46,7 @@ def get_stats():
         current_user_id_int = int(current_user_id) 
         
         user_posts_count = Post.query.filter_by(autor_id=current_user_id_int).count()
-        user_comments_count = Comentario.query.filter_by(autor_id=current_user_id_int).count() # Asumiendo que Comentario también usa autor_id
+        user_comments_count = Comentario.query.filter_by(autor_id=current_user_id_int).count()
         
         return jsonify({
             "rol": "user",

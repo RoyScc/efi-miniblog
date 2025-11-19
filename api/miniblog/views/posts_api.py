@@ -64,7 +64,7 @@ class PostAPI(MethodView):
             return jsonify({"error": "No autorizado"}), 403
 
         data = request.get_json() or {}
-        errors = post_schema.validate(data, partial=True)
+        errors = post_schema.validate(data, partial=True, session=db.session)
         if errors:
             return jsonify({"error": "Validación", "detalle": errors}), 400
 

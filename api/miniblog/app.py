@@ -2,6 +2,8 @@ from flask import Flask
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_jwt_extended import JWTManager
+from flask_cors import CORS
+from flask import jsonify
 from datetime import timedelta
 from .extensions import db, ma
 from .models import Usuario
@@ -11,32 +13,13 @@ from .views.user_views import user_bp
 from .views.posts_api import api_bp
 from .views.categories_views import categories_bp
 from .views.stats_views import stats_bp
-try:
-    from .models import Usuario
-    from .extensions import db, ma
-except ImportError: 
-    print("Error: No se pudieron importar 'db', 'ma' o 'Usuario'.")
-    print("Asegúrate de haber movido 'models.py' a 'models/__init__.py'")
-    print("y de haber movido 'schemas.py' a 'schemas/user_schemas.py' (e importado 'ma' en 'schemas/__init__.py')")
-
-try:
-    from .views.main_views import main_bp
-    from .views.auth_views import auth_bp
-    from .views.user_views import user_bp
-    from .views.posts_api import api_bp 
-    from .views.categories_views import categories_bp
-    from .views.stats_views import stats_bp
-    
-except ImportError as e:
-    print(f"Error importando Blueprints: {e}")
-    print("Asegúrate de que tus archivos en la carpeta /views (main_views.py, auth_views.py, etc.) existan y definan un Blueprint.")
 
 
 app = Flask(__name__)
 
 app.config["JWT_SECRET_KEY"] = "cualquier-cosa"
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://miniblog_user:Tomo@localhost/miniblog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:gisel123@localhost/miniblog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["SECRET_KEY"] = "demo" 
 
@@ -47,13 +30,17 @@ ma.init_app(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app) 
-login_manager.login_view = 'auth_views.login' 
+login_manager.login_view = None
 
+@login_manager.unauthorized_handler
+def unauthorized_callback():
+    return jsonify({"error": "No autenticado"}), 401
+
+CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 @login_manager.user_loader
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
-
 
 app.register_blueprint(main_bp)      
 app.register_blueprint(auth_bp)       
@@ -61,7 +48,6 @@ app.register_blueprint(user_bp)
 app.register_blueprint(api_bp)        
 app.register_blueprint(categories_bp) 
 app.register_blueprint(stats_bp)
-
 
 def init_db():
     with app.app_context():
@@ -76,9 +62,6 @@ def init_db():
                 db.session.add(nueva_cat)
         
         db.session.commit()
-
-#with app.app_context():
-    #init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
